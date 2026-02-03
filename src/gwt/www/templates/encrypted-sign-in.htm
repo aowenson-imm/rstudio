@@ -87,6 +87,20 @@
                 aria-required="true"
               /><br />
             </p>
+            <p style="display: #otpDisplay#">
+              <label for="otp">2FA Code:</label><br />
+              <input
+                type="text"
+                name="otp"
+                autocomplete="off"
+                autocorrect="off"
+                autocapitalize="off"
+                spellcheck="false"
+                value=""
+                id="otp"
+                size="45"
+              /><br />
+            </p>
             <div style="display: #staySignedInDisplay#">
               <input
                 type="checkbox"
@@ -109,6 +123,8 @@
               name="#csrf_token_meta#"
               value="#csrf_token#"
             />
+            <input type="hidden" name="otpRequired" id="otpRequired" value="#otpRequired#" />
+            <input type="hidden" name="otpNonce" id="otpNonce" value="#otpNonce#" />
             <input type="hidden" name="appUri" value="#appUri#" />
             <div class="buttonpanel">
               <button id="signinbutton" class="fancy" type="submit">
@@ -167,6 +183,8 @@
     <form action="#action#" name="realform" method="POST">
       <input type="hidden" name="persist" id="persist" value="" />
       <input type="hidden" name="#csrf_token_meta#" value="#csrf_token#" />
+      <input type="hidden" name="otpRequired" id="otpRequiredReal" value="#otpRequired#" />
+      <input type="hidden" name="otpNonce" id="otpNonceReal" value="#otpNonce#" />
       <input type="hidden" name="appUri" value="#appUri#" />
       <input type="hidden" name="clientPath" id="clientPath" value="" />
       <input id="package" type="hidden" name="v" value="" />

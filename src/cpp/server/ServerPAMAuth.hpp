@@ -28,7 +28,17 @@ namespace rstudio {
 namespace server {
 namespace pam_auth {
    
-bool pamLogin(const std::string& username, const std::string& password);
+enum class PamLoginResult
+{
+   Success,
+   AuthFailed,
+   OtpRequired,
+   Error
+};
+
+PamLoginResult pamLogin(const std::string& username,
+                        const std::string& password,
+                        const std::string& otp);
 
 core::Error initialize();
 

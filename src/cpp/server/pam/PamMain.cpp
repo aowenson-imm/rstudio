@@ -18,6 +18,7 @@
 #include <stdio.h>
 
 #include <boost/format.hpp>
+#include <boost/algorithm/string.hpp>
 
 #include <shared_core/Error.hpp>
 
@@ -87,22 +88,34 @@ int main(int argc, char * const argv[])
         requirePasswordPrompt = std::string(argv[3]) == "1";
       }
 
-      // read password (up to 200 chars in length)
-      const int MAXPASS = 200;
-      std::string password = string_utils::consumeStdin(string_utils::StdinSingleLine);
-      if (password.size() > MAXPASS)
+      // read password (+ optional otp) from stdin (up to 400 chars)
+      const int MAXINPUT = 400;
+      std::string input = string_utils::consumeStdin(string_utils::StdinMultiLine, MAXINPUT);
+      if (input.size() > MAXINPUT)
       {
          // would be nice to log some details here but better not to leak any
          // information about passwords or limits
-         LOG_WARNING_MESSAGE("Password exceeded maximum length for "
+         LOG_WARNING_MESSAGE("Credentials exceeded maximum length for "
                               "user " + username);
          return EXIT_FAILURE;
       }
 
+      std::vector<std::string> parts;
+      boost::algorithm::split(parts, input, boost::is_any_of("\n"), boost::token_compress_off);
+
+      std::string password = parts.empty() ? std::string() : parts[0];
+      std::string otp = parts.size() > 1 ? parts[1] : std::string();
+      if (!password.empty() && password.back() == '\r')
+         password.pop_back();
+      if (!otp.empty() && otp.back() == '\r')
+         otp.pop_back();
+
       // verify password
       core::system::PAM pam(service, false, true, requirePasswordPrompt);
-      if (pam.login(username, password) == PAM_SUCCESS)
+      if (pam.login(username, password, otp) == PAM_SUCCESS)
          return EXIT_SUCCESS;
+      else if (pam.otpRequired())
+         return 2;
       else
          return EXIT_FAILURE;
    }
@@ -111,4 +124,3 @@ int main(int argc, char * const argv[])
    // if we got this far we had an unexpected exception
    return EXIT_FAILURE;
 }
-

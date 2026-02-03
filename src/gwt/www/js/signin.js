@@ -36,9 +36,13 @@ function verifyMe() {
       return false;
    }
 
-   // If a username is present, ensure it has a value
+   var otpRequiredEle = document.getElementById('otpRequired');
+   var otpEle = document.getElementById('otp');
+   var otpRequired = otpRequiredEle !== null && otpRequiredEle.value === '1';
+
+   // If a username is present, ensure it has a value unless we're in OTP-only flow
    var userEle = document.getElementById('username');
-   if (userEle !== null) {
+   if (userEle !== null && !otpRequired) {
      if (userEle.value === '') {
         userEle.focus();
         showError('You must enter a username');
@@ -46,12 +50,20 @@ function verifyMe() {
      }
    }
 
-   // If a password element is present, ensure it has a value
+   // If a password element is present, ensure it has a value unless we're in OTP-only flow
    var passwordEle = document.getElementById('password');
-   if (passwordEle !== null) {
+   if (passwordEle !== null && !otpRequired) {
      if (passwordEle.value === '') {
         passwordEle.focus();
         showError('You must enter a password');
+        return false;
+     }
+   }
+
+   if (otpRequiredEle !== null && otpEle !== null) {
+     if (otpRequiredEle.value === '1' && otpEle.value === '') {
+        otpEle.focus();
+        showError('You must enter a 2FA code');
         return false;
      }
    }
@@ -74,6 +86,8 @@ function verifyMe() {
          userEle.disabled = true;
       if (passwordEle !== null)
          passwordEle.disabled = true;
+      if (otpEle !== null)
+         otpEle.disabled = true;
    }, 0);
 
    // Form is valid
@@ -107,7 +121,8 @@ function prepare() {
 
    try {
       var payload = document.getElementById('username').value + "\n" +
-                    document.getElementById('password').value;
+                    document.getElementById('password').value + "\n" +
+                    (document.getElementById('otp') ? document.getElementById('otp').value : "");
       var xhr = new XMLHttpRequest();
       var metas = document.getElementsByTagName("meta");
       var url = "";
