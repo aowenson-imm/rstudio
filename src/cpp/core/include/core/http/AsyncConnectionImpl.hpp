@@ -50,6 +50,28 @@ namespace http {
 typedef boost::function<void(const boost::system::error_code&, std::size_t)> ReadHandler;
 typedef boost::function<void(const boost::system::error_code&, bool)> WriteHandler;
 
+namespace detail {
+
+inline void setPeerIpHeader(http::Request* pRequest,
+                            boost::asio::ip::tcp::socket& socket)
+{
+   boost::system::error_code ec;
+   auto endpoint = socket.remote_endpoint(ec);
+   if (ec)
+      return;
+
+   pRequest->setHeader("X-RStudio-Client-IP", endpoint.address().to_string());
+}
+
+template <typename SocketType>
+inline void setPeerIpHeader(http::Request* /*pRequest*/,
+                            SocketType& /*socket*/)
+{
+   // Non-TCP transports do not have an IP peer address.
+}
+
+} // namespace detail
+
 class ISocketOperations
 {
 public:
@@ -176,6 +198,7 @@ public:
    {
       startTime_ = boost::posix_time::microsec_clock::universal_time();
       request_.setStartTime(startTime_);
+      detail::setPeerIpHeader(&request_, socket());
 
       if (sslStream_)
       {

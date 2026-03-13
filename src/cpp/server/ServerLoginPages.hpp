@@ -37,6 +37,10 @@ const char * const kErrorMessage = "errorMessage";
 const char * const kLoginPageHtml = "loginPageHtml";
 
 const char * const kAppUri = "appUri";
+const char * const kOtpParam = "otp";
+const char * const kOtpDisplay = "otpDisplay";
+const char * const kOtpRequired = "otpRequired";
+const char * const kCredentialDisplay = "credentialDisplay";
 const char * const kStaySignedIn = "staySignedIn";
 
 enum ErrorType 
@@ -47,6 +51,8 @@ enum ErrorType
    kErrorUserUnauthorized,
    kErrorUserLicenseLimitReached,
    kErrorUserLicenseSystemUnavailable,
+   kErrorOtpRequired,
+   kErrorOtpExpired,
 };
 
 void loadLoginPage(const core::http::Request& request,

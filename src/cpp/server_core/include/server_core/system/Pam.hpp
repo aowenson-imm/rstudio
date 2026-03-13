@@ -55,7 +55,11 @@ public:
    int status() const { return status_; }
 
    virtual int login(const std::string& username,
-                     const std::string& password);
+                     const std::string& password,
+                     const std::string& otp = std::string(),
+                     const std::string& rhost = std::string());
+
+   bool otpRequired() const { return otpRequired_; }
 
    virtual void close();
 
@@ -68,6 +72,11 @@ protected:
     bool requirePasswordPrompt_;
 
     std::string password_;
+    std::string otp_;
+    std::string rhost_;
+    bool otpRequired_ = false;
+    bool passwordSent_ = false;
+    bool otpSent_ = false;
     friend int core::system::conv(int num_msg,
                                   const struct pam_message** msg,
                                   struct pam_response** resp,

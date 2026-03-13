@@ -53,6 +53,10 @@ std::string loginErrorMessage(ErrorType error)
          return "The user limit for this license has been reached, or you are not allowed access.";
       case kErrorUserLicenseSystemUnavailable:
          return "The user licensing system is temporarily unavailable. Please try again later.";
+      case kErrorOtpRequired:
+         return "Two-factor authentication code required.";
+      case kErrorOtpExpired:
+         return "Two-factor authentication prompt expired. Please sign in again.";
    }
    return "";
 }
@@ -74,6 +78,11 @@ void fillLoginFields(const core::http::Request& request,
    variables[kErrorMessage] = loginErrorMessage(static_cast<ErrorType>(
             core::safe_convert::stringTo<unsigned>(error, kErrorNone)));
    variables[kErrorDisplay] = error.empty() ? "none" : "block";
+
+   std::string otpRequired = request.queryParamValue(kOtpParam);
+   variables[kOtpDisplay] = otpRequired == "1" ? "block" : "none";
+   variables[kOtpRequired] = otpRequired == "1" ? "1" : "0";
+   variables[kCredentialDisplay] = "block";
 
    // get the application uri the user was on the way to (default to
    // root location if it isn't specified)
