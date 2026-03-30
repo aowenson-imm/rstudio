@@ -19,6 +19,80 @@ var responseURL = "";
 // Global variable; tracks whether an active sign-in is in progress
 var activeSignIn = false;
 
+function setSigningInState(signingIn) {
+   var staySignedInEle = document.getElementById('staySignedIn');
+   var signinButton = document.getElementById('signinbutton');
+   var spinner = document.getElementById('spinner');
+   var progress = document.getElementById('progress-message');
+   var userEle = document.getElementById('username');
+   var passwordEle = document.getElementById('password');
+   var otpEle = document.getElementById('otp');
+
+   activeSignIn = signingIn;
+
+   if (staySignedInEle !== null)
+      staySignedInEle.readOnly = signingIn;
+
+   if (signinButton !== null) {
+      signinButton.disabled = signingIn;
+      signinButton.classList.toggle('disabled', signingIn);
+   }
+
+   if (spinner !== null)
+      spinner.classList.toggle('signin-hidden', !signingIn);
+
+   if (progress !== null)
+      progress.innerText = signingIn ? "Signing in" : "";
+
+   if (userEle !== null)
+      userEle.disabled = signingIn;
+   if (passwordEle !== null)
+      passwordEle.disabled = signingIn;
+   if (otpEle !== null)
+      otpEle.disabled = signingIn;
+}
+
+function clearError() {
+   var errorDiv = document.getElementById('errorpanel');
+   if (errorDiv !== null)
+      errorDiv.style.display = 'none';
+
+   var liveError = document.getElementById('live-error');
+   if (liveError !== null)
+      liveError.innerText = '';
+}
+
+function showOtpChallenge() {
+   var credentialGroup = document.getElementById('credentialgroup');
+   var otpGroup = document.getElementById('otpgroup');
+   var otpRequiredEle = document.getElementById('otpRequired');
+   var otpRequiredRealEle = document.getElementById('otpRequiredReal');
+   var userEle = document.getElementById('username');
+   var passwordEle = document.getElementById('password');
+   var otpEle = document.getElementById('otp');
+
+   setSigningInState(false);
+
+   if (credentialGroup !== null)
+      credentialGroup.style.display = 'none';
+   if (otpGroup !== null)
+      otpGroup.style.display = 'block';
+   if (otpRequiredEle !== null)
+      otpRequiredEle.value = '1';
+   if (otpRequiredRealEle !== null)
+      otpRequiredRealEle.value = '1';
+   if (userEle !== null)
+      userEle.disabled = true;
+   if (passwordEle !== null)
+      passwordEle.disabled = true;
+   if (otpEle !== null) {
+      otpEle.disabled = false;
+      otpEle.focus();
+   }
+
+   clearError();
+}
+
 /**
  * Ensure error region is spoken by a screen reader.
  */
@@ -36,9 +110,13 @@ function verifyMe() {
       return false;
    }
 
-   // If a username is present, ensure it has a value
+   var otpRequiredEle = document.getElementById('otpRequired');
+   var otpEle = document.getElementById('otp');
+   var otpRequired = otpRequiredEle !== null && otpRequiredEle.value === '1';
+
+   // If a username is present, ensure it has a value unless we're in OTP-only flow
    var userEle = document.getElementById('username');
-   if (userEle !== null) {
+   if (userEle !== null && !otpRequired) {
      if (userEle.value === '') {
         userEle.focus();
         showError('You must enter a username');
@@ -46,9 +124,9 @@ function verifyMe() {
      }
    }
 
-   // If a password element is present, ensure it has a value
+   // If a password element is present, ensure it has a value unless we're in OTP-only flow
    var passwordEle = document.getElementById('password');
-   if (passwordEle !== null) {
+   if (passwordEle !== null && !otpRequired) {
      if (passwordEle.value === '') {
         passwordEle.focus();
         showError('You must enter a password');
@@ -56,25 +134,15 @@ function verifyMe() {
      }
    }
 
-   // Remember that we have an active sign-in (prevents us from detecting our own sign-in when
-  // polling)
-   activeSignIn = true;
+   if (otpRequiredEle !== null && otpEle !== null) {
+     if (otpRequiredEle.value === '1' && otpEle.value === '') {
+        otpEle.focus();
+        showError('You must enter a 2FA code');
+        return false;
+     }
+   }
 
-   // Disable all sign-in controls to prevent attempts to sign in multiple times
-   document.getElementById('staySignedIn').readOnly = true;
-   document.getElementById('signinbutton').disabled = true;
-   document.getElementById('signinbutton').classList.add('disabled');
-   document.getElementById('spinner').classList.remove('signin-hidden');
-   document.getElementById('progress-message').innerText = "Signing in";
-
-   setTimeout(function () {
-      // Disable username/password controls after event loop so they are enabled at the time the
-     // form is actually submitted.
-      if (userEle !== null)
-         userEle.disabled = true;
-      if (passwordEle !== null)
-         passwordEle.disabled = true;
-   }, 0);
+   setSigningInState(true);
 
    // Form is valid
    return true;
@@ -106,8 +174,12 @@ function prepare() {
       return false;
 
    try {
-      var payload = document.getElementById('username').value + "\n" +
-                    document.getElementById('password').value;
+      var usernameEle = document.getElementById('username');
+      var passwordEle = document.getElementById('password');
+      var otpEle = document.getElementById('otp');
+      var payload = (usernameEle ? usernameEle.value : "") + "\n" +
+                    (passwordEle ? passwordEle.value : "") + "\n" +
+                    (otpEle ? otpEle.value : "");
       var xhr = new XMLHttpRequest();
       var metas = document.getElementsByTagName("meta");
       var url = "";
@@ -118,6 +190,7 @@ function prepare() {
          }
       }
       if (url === "") {
+         setSigningInState(false);
          showError("Cannot determine server's public key for password encryption;" +
                    "missing <meta> tag.");
          return;
@@ -133,6 +206,7 @@ function prepare() {
                      errorMessage = "Error: Could not reach server--check your internet connection";
                   else
                      errorMessage = "Error: " + xhr.statusText;
+                  setSigningInState(false);
                   showError(errorMessage);
                }
                else {
@@ -148,20 +222,73 @@ function prepare() {
                         document.getElementById('package').value = result.ct;
                      }
                      document.getElementById('clientPath').value = window.location.pathname;
-                     document.realform.submit();
+                     console.log("signin prepare", {
+                        otpRequired: document.getElementById('otpRequiredReal').value,
+                        packageLength: document.getElementById('package').value.length
+                     });
+                     submitPreparedForm();
                   }).catch(function (exception) {
+                     setSigningInState(false);
                      showError("Error: " + exception);
                   });
                }
             }
          } catch (exception) {
+            setSigningInState(false);
             showError("Error: " + exception);
          }
       };
       xhr.send(null);
    } catch (exception) {
+      setSigningInState(false);
       showError("Error: " + exception);
    }
+}
+
+/**
+ * Submits the encrypted credentials and interprets the auth response.
+ */
+function submitPreparedForm() {
+   var form = document.realform;
+   var xhr = new XMLHttpRequest();
+   var formData = new URLSearchParams(new FormData(form));
+   console.log("signin submit", {
+      action: form.action,
+      payloadLength: formData.toString().length,
+      packageLength: document.getElementById('package').value.length
+   });
+
+   xhr.open(form.method || "POST", form.action, true);
+   xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
+   xhr.setRequestHeader("Accept", "application/json");
+   xhr.onreadystatechange = function() {
+      if (xhr.readyState !== 4)
+         return;
+
+      try {
+         if (xhr.status !== 200) {
+            setSigningInState(false);
+            showError(xhr.status === 0 ?
+               "Error: Could not reach server--check your internet connection" :
+               "Error: " + xhr.statusText);
+            return;
+         }
+
+         var response = JSON.parse(xhr.responseText);
+         if (response.status === "ok") {
+            window.location = response.redirect || "./";
+         } else if (response.status === "otp_required") {
+            showOtpChallenge();
+         } else {
+            setSigningInState(false);
+            showError(response.message || "Temporary server error, please try again");
+         }
+      } catch (exception) {
+         setSigningInState(false);
+         showError("Error: " + exception);
+      }
+   };
+   xhr.send(formData.toString());
 }
 
 /**
@@ -169,8 +296,9 @@ function prepare() {
  */
 function submitRealForm() {
   if (prepare()) {
-    document.realform.submit();
+    return false;
   }
+  return false;
 }
 
 /**

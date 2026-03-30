@@ -82,6 +82,7 @@ int conv(int num_msg,
    try
    {
       MemoryPool pool;
+      PAM* pPam = static_cast<PAM*>(appdata_ptr);
 
       // resp will be freed by the caller
       *resp = static_cast<pam_response*>(pool.alloc(sizeof(pam_response) * num_msg));
@@ -98,12 +99,18 @@ int conv(int num_msg,
          switch (input->msg_style)
          {
          case PAM_PROMPT_ECHO_OFF:
+         case PAM_PROMPT_ECHO_ON:
          {
             boost::regex passwordRegex("\\bpassword:\\s*$",
                                        boost::regex_constants::icase);
+            boost::regex otpRegex("(otp|2fa|two\\s*-?\\s*factor|verification\\s*code|authenticator|one\\s*-?\\s*time)",
+                                  boost::regex_constants::icase);
             boost::smatch match;
-            PAM* pPam = static_cast<PAM*>(appdata_ptr);
-            if (!pPam->requirePasswordPrompt_ || regex_search(msgText, match, passwordRegex))
+
+            bool isPasswordPrompt = regex_search(msgText, match, passwordRegex);
+            bool isOtpPrompt = regex_search(msgText, match, otpRegex);
+
+            if (!pPam->passwordSent_ && (!pPam->requirePasswordPrompt_ || isPasswordPrompt))
             {
                resp[i]->resp_retcode = 0;
 
@@ -111,9 +118,28 @@ int conv(int num_msg,
                // respBuf will be freed by the caller
                char* respBuf = static_cast<char*>(pool.alloc(strlen(password) + 1));
                resp[i]->resp = ::strcpy(respBuf, password);
+               pPam->passwordSent_ = true;
+            }
+            else if (!pPam->otpSent_ && isOtpPrompt)
+            {
+               if (pPam->otp_.empty())
+               {
+                  pPam->otpRequired_ = true;
+                  *resp = nullptr;
+                  return PAM_CONV_ERR;
+               }
+
+               resp[i]->resp_retcode = 0;
+               char* otp = const_cast<char*>(pPam->otp_.c_str());
+               char* respBuf = static_cast<char*>(pool.alloc(strlen(otp) + 1));
+               resp[i]->resp = ::strcpy(respBuf, otp);
+               pPam->otpSent_ = true;
             }
             else
-               return PAM_CONV_ERR;
+            {
+              *resp = nullptr;
+              return PAM_CONV_ERR;
+            }
             break;
          }
          case PAM_TEXT_INFO:
@@ -124,7 +150,6 @@ int conv(int num_msg,
             resp[i]->resp = respBuf;
             break;
          }
-         case PAM_PROMPT_ECHO_ON:
          case PAM_ERROR_MSG:
          default:
             // Don't return an error here - some errors are for 'sufficient' steps that
@@ -175,9 +200,16 @@ std::string PAM::lastError()
 }
 
 int PAM::login(const std::string& username,
-               const std::string& password)
+               const std::string& password,
+               const std::string& otp,
+               const std::string& rhost)
 {
    password_ = password;
+   otp_ = otp;
+   rhost_ = rhost;
+   otpRequired_ = false;
+   passwordSent_ = false;
+   otpSent_ = false;
 
    struct pam_conv myConv;
    myConv.conv = conv;
@@ -190,6 +222,16 @@ int PAM::login(const std::string& username,
    {
       safeLogToSyslog("pam-login", log::LogLevel::ERR, "pam_start failed: " + lastError());
       return status_;
+   }
+
+   if (!rhost_.empty())
+   {
+      status_ = ::pam_set_item(pamh_, PAM_RHOST, rhost_.c_str());
+      if (status_ != PAM_SUCCESS)
+      {
+         safeLogToSyslog("pam-login", log::LogLevel::ERR, "pam_set_item(PAM_RHOST) failed: " + lastError());
+         return status_;
+      }
    }
 
    status_ = ::pam_authenticate(pamh_, defaultFlags_);

@@ -57,34 +57,50 @@
             <h1 id="caption_header" class="caption">
               Sign in to RStudio
             </h1>
-            <p>
-              <label for="username">Username:</label><br />
+            <div id="credentialgroup" style="display: #credentialDisplay#">
+              <p>
+                <label for="username">Username:</label><br />
+                <input
+                  type="text"
+                  name="username"
+                  autocomplete="off"
+                  autocorrect="off"
+                  autocapitalize="off"
+                  spellcheck="false"
+                  value=""
+                  id="username"
+                  size="45"
+                  aria-required="true"
+                /><br />
+              </p>
+              <p>
+                <label for="password">Password:</label><br />
+                <input
+                  type="password"
+                  name="password"
+                  autocomplete="off"
+                  autocorrect="off"
+                  autocapitalize="off"
+                  spellcheck="false"
+                  value=""
+                  id="password"
+                  size="45"
+                  aria-required="true"
+                /><br />
+              </p>
+            </div>
+            <p id="otpgroup" style="display: #otpDisplay#">
+              <label for="otp">2FA Code:</label><br />
               <input
                 type="text"
-                name="username"
+                name="otp"
                 autocomplete="off"
                 autocorrect="off"
                 autocapitalize="off"
                 spellcheck="false"
                 value=""
-                id="username"
+                id="otp"
                 size="45"
-                aria-required="true"
-              /><br />
-            </p>
-            <p>
-              <label for="password">Password:</label><br />
-              <input
-                type="password"
-                name="password"
-                autocomplete="off"
-                autocorrect="off"
-                autocapitalize="off"
-                spellcheck="false"
-                value=""
-                id="password"
-                size="45"
-                aria-required="true"
               /><br />
             </p>
             <div style="display: #staySignedInDisplay#">
@@ -109,6 +125,7 @@
               name="#csrf_token_meta#"
               value="#csrf_token#"
             />
+            <input type="hidden" name="otpRequired" id="otpRequired" value="#otpRequired#" />
             <input type="hidden" name="appUri" value="#appUri#" />
             <div class="buttonpanel">
               <button id="signinbutton" class="fancy" type="submit">
@@ -167,6 +184,7 @@
     <form action="#action#" name="realform" method="POST">
       <input type="hidden" name="persist" id="persist" value="" />
       <input type="hidden" name="#csrf_token_meta#" value="#csrf_token#" />
+      <input type="hidden" name="otpRequired" id="otpRequiredReal" value="#otpRequired#" />
       <input type="hidden" name="appUri" value="#appUri#" />
       <input type="hidden" name="clientPath" id="clientPath" value="" />
       <input id="package" type="hidden" name="v" value="" />
