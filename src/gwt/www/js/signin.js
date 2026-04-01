@@ -62,9 +62,10 @@ function clearError() {
       liveError.innerText = '';
 }
 
-function showOtpChallenge() {
+function showOtpChallenge(setupMessage) {
    var credentialGroup = document.getElementById('credentialgroup');
    var otpGroup = document.getElementById('otpgroup');
+   var otpSetupMessageEle = document.getElementById('otp-setup-message');
    var otpRequiredEle = document.getElementById('otpRequired');
    var otpRequiredRealEle = document.getElementById('otpRequiredReal');
    var userEle = document.getElementById('username');
@@ -73,8 +74,37 @@ function showOtpChallenge() {
 
    setSigningInState(false);
 
+   // Backward-compatible fallback: create setup message container if template
+   // wasn't updated on the server.
+   if (otpSetupMessageEle === null && otpGroup !== null && otpGroup.parentNode !== null) {
+      otpSetupMessageEle = document.createElement('div');
+      otpSetupMessageEle.id = 'otp-setup-message';
+      otpSetupMessageEle.setAttribute('aria-live', 'polite');
+      otpSetupMessageEle.style.display = 'none';
+      otpSetupMessageEle.style.margin = '0 0 12px 0';
+      otpSetupMessageEle.style.padding = '10px 12px';
+      otpSetupMessageEle.style.border = '1px solid #c6d3df';
+      otpSetupMessageEle.style.borderRadius = '4px';
+      otpSetupMessageEle.style.background = '#f6f9fc';
+      otpSetupMessageEle.style.color = '#1f2933';
+      otpSetupMessageEle.style.whiteSpace = 'pre-wrap';
+      otpSetupMessageEle.style.fontSize = '13px';
+      otpSetupMessageEle.style.lineHeight = '1.4';
+      otpGroup.parentNode.insertBefore(otpSetupMessageEle, otpGroup);
+   }
+
    if (credentialGroup !== null)
       credentialGroup.style.display = 'none';
+   if (otpSetupMessageEle !== null) {
+      var trimmedMessage = (setupMessage || '').trim();
+      if (trimmedMessage.length > 0) {
+         otpSetupMessageEle.textContent = trimmedMessage;
+         otpSetupMessageEle.style.display = 'block';
+      } else {
+         otpSetupMessageEle.textContent = '';
+         otpSetupMessageEle.style.display = 'none';
+      }
+   }
    if (otpGroup !== null)
       otpGroup.style.display = 'block';
    if (otpRequiredEle !== null)
@@ -278,7 +308,7 @@ function submitPreparedForm() {
          if (response.status === "ok") {
             window.location = response.redirect || "./";
          } else if (response.status === "otp_required") {
-            showOtpChallenge();
+            showOtpChallenge(response.otp_setup_message);
          } else {
             setSigningInState(false);
             showError(response.message || "Temporary server error, please try again");

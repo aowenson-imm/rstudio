@@ -147,10 +147,12 @@ void setJsonErrorResponse(const std::string& error,
    setJsonResponse(payload, pResponse);
 }
 
-void setJsonOtpRequiredResponse(http::Response* pResponse)
+void setJsonOtpRequiredResponse(const std::string& otpSetupMessage,
+                                http::Response* pResponse)
 {
    json::Object payload;
    payload["status"] = "otp_required";
+   payload["otp_setup_message"] = otpSetupMessage;
    setJsonResponse(payload, pResponse);
 }
 
@@ -176,11 +178,14 @@ std::string userIdentifierToLocalUsername(const std::string& userIdentifier)
 void redirectToLoginPageWithOtp(const http::Request& request,
                                 http::Response* pResponse,
                                 const std::string& appUri,
+                                const std::string& otpSetupMessage,
                                 ErrorType error)
 {
    core::http::Fields fields;
    fields.push_back(std::make_pair(kAppUri, appUri));
    fields.push_back(std::make_pair(kOtpParam, "1"));
+   if (!otpSetupMessage.empty())
+      fields.push_back(std::make_pair(kOtpSetupParam, otpSetupMessage));
    if (error != kErrorNone)
       fields.push_back(std::make_pair(kErrorParam, core::safe_convert::numberToString(error)));
 
@@ -293,13 +298,18 @@ void doSignIn(const http::Request& request,
 
    overlay::onUserPasswordUnavailable(username);
 
-   PamLoginResult pamResult = pamLogin(username, password, otp, requestRhost(request));
+   std::string otpSetupMessage;
+   PamLoginResult pamResult = pamLogin(username, password, otp, requestRhost(request),
+                                       &otpSetupMessage);
    if (pamResult == PamLoginResult::OtpRequired)
    {
+      LOG_WARNING_MESSAGE("OTP required for user '" + username +
+                          "' jsonResponse=" + (jsonResponse ? std::string("1") : std::string("0")) +
+                          " setup-message-len=" + std::to_string(otpSetupMessage.size()));
       if (jsonResponse)
-         setJsonOtpRequiredResponse(pResponse);
+         setJsonOtpRequiredResponse(otpSetupMessage, pResponse);
       else
-         redirectToLoginPageWithOtp(request, pResponse, appUri, kErrorOtpRequired);
+         redirectToLoginPageWithOtp(request, pResponse, appUri, otpSetupMessage, kErrorOtpRequired);
       return;
    }
 
@@ -338,7 +348,8 @@ void signOut(const http::Request& request,
 
 PamLoginResult pamLogin(const std::string& username, const std::string& password,
                         const std::string& otp,
-                        const std::string& rhost)
+                        const std::string& rhost,
+                        std::string* pOtpSetupMessage)
 {
    // get path to pam helper
    FilePath pamHelperPath(server::options().authPamHelperPath());
@@ -392,6 +403,12 @@ PamLoginResult pamLogin(const std::string& username, const std::string& password
    }
    else if (result.exitStatus == 2)
    {
+      if (pOtpSetupMessage)
+      {
+         *pOtpSetupMessage = result.stdOut;
+         LOG_WARNING_MESSAGE("PAM helper otp-required stdout captured for user '" + username +
+                             "' len=" + std::to_string(pOtpSetupMessage->size()));
+      }
       LOG_DEBUG_MESSAGE("PAM login result: for username: " + username + " returns: otp required");
       return PamLoginResult::OtpRequired;
    }

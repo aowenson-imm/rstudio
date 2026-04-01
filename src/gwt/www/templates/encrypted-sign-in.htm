@@ -29,6 +29,19 @@
     #errorpanel {
       display: #errorDisplay#;
     }
+
+    #otp-setup-message {
+      display: #otpSetupDisplay#;
+      margin: 0 0 12px 0;
+      padding: 10px 12px;
+      border: 1px solid #c6d3df;
+      border-radius: 4px;
+      background: #f6f9fc;
+      color: #1f2933;
+      white-space: pre-wrap;
+      font-size: 13px;
+      line-height: 1.4;
+    }
   </style>
 
   <script type="text/javascript" src="js/encrypt.min.js"></script>
@@ -89,6 +102,7 @@
                 /><br />
               </p>
             </div>
+            <div id="otp-setup-message" aria-live="polite">#otpSetupMessage#</div>
             <p id="otpgroup" style="display: #otpDisplay#">
               <label for="otp">2FA Code:</label><br />
               <input

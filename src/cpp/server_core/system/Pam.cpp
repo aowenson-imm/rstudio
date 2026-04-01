@@ -17,6 +17,7 @@
 
 #include <boost/utility.hpp>
 #include <boost/regex.hpp>
+#include <boost/algorithm/string.hpp>
 
 #include <core/Log.hpp>
 #include <core/system/System.hpp>
@@ -27,6 +28,41 @@ namespace core {
 namespace system {
 
 namespace {
+
+int countSetupKeywords(const std::string& text)
+{
+   std::string lower = boost::algorithm::to_lower_copy(text);
+   int matches = 0;
+
+   if (lower.find("new") != std::string::npos)
+      ++matches;
+   if (lower.find("scan") != std::string::npos)
+      ++matches;
+   if (lower.find("verify") != std::string::npos)
+      ++matches;
+   if (lower.find("generate") != std::string::npos)
+      ++matches;
+
+   return matches;
+}
+
+bool likelyOtpSetupMessage(const std::string& text)
+{
+   return countSetupKeywords(text) >= 2;
+}
+
+bool hasMultipleLines(const std::string& text)
+{
+   return text.find('\n') != std::string::npos;
+}
+
+std::string summarizePamText(const std::string& text)
+{
+   int keywords = countSetupKeywords(text);
+   return "len=" + std::to_string(text.size()) +
+          ", keywords=" + std::to_string(keywords) +
+          ", classified_setup=" + (keywords >= 2 ? std::string("1") : std::string("0"));
+}
 
 class MemoryPool : boost::noncopyable {
 
@@ -125,6 +161,24 @@ int conv(int num_msg,
                if (pPam->otp_.empty())
                {
                   pPam->otpRequired_ = true;
+                  std::string otpContext = pPam->pamTextInfo_;
+                  if (!otpContext.empty() && otpContext.back() != '\n')
+                     otpContext += "\n";
+                  otpContext += msgText;
+                  safeLogToSyslog("pam-login",
+                                  log::LogLevel::WARN,
+                                  "OTP prompt detected without otp input; " + summarizePamText(otpContext));
+                  bool hasSetupGuidance = likelyOtpSetupMessage(otpContext) ||
+                                          !pPam->pamTextInfo_.empty() ||
+                                          hasMultipleLines(msgText);
+                  if (hasSetupGuidance)
+                  {
+                     pPam->otpSetupMessage_ = otpContext;
+                     safeLogToSyslog("pam-login",
+                                     log::LogLevel::WARN,
+                                     "Captured OTP setup guidance for frontend; len=" +
+                                     std::to_string(pPam->otpSetupMessage_.size()));
+                  }
                   *resp = nullptr;
                   return PAM_CONV_ERR;
                }
@@ -144,6 +198,13 @@ int conv(int num_msg,
          }
          case PAM_TEXT_INFO:
          {
+            if (!msgText.empty())
+            {
+               if (!pPam->pamTextInfo_.empty())
+                  pPam->pamTextInfo_ += "\n";
+               pPam->pamTextInfo_ += msgText;
+            }
+
             resp[i]->resp_retcode = 0;
             char* respBuf = static_cast<char*>(pool.alloc(1));
             respBuf[0] = '\0';
@@ -151,6 +212,16 @@ int conv(int num_msg,
             break;
          }
          case PAM_ERROR_MSG:
+         {
+            // Some PAM stacks emit informational setup text as PAM_ERROR_MSG.
+            if (!msgText.empty())
+            {
+               if (!pPam->pamTextInfo_.empty())
+                  pPam->pamTextInfo_ += "\n";
+               pPam->pamTextInfo_ += msgText;
+            }
+            break;
+         }
          default:
             // Don't return an error here - some errors are for 'sufficient' steps that
             // should not cause a login failure and this callback doesn't have the ability
@@ -207,6 +278,8 @@ int PAM::login(const std::string& username,
    password_ = password;
    otp_ = otp;
    rhost_ = rhost;
+   pamTextInfo_.clear();
+   otpSetupMessage_.clear();
    otpRequired_ = false;
    passwordSent_ = false;
    otpSent_ = false;

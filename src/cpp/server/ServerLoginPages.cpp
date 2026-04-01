@@ -82,6 +82,9 @@ void fillLoginFields(const core::http::Request& request,
    std::string otpRequired = request.queryParamValue(kOtpParam);
    variables[kOtpDisplay] = otpRequired == "1" ? "block" : "none";
    variables[kOtpRequired] = otpRequired == "1" ? "1" : "0";
+   std::string otpSetupMessage = request.queryParamValue(kOtpSetupParam);
+   variables[kOtpSetupMessage] = otpSetupMessage;
+   variables[kOtpSetupDisplay] = otpSetupMessage.empty() ? "none" : "block";
    variables[kCredentialDisplay] = "block";
 
    // get the application uri the user was on the way to (default to

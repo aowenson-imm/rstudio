@@ -38,8 +38,11 @@ const char * const kLoginPageHtml = "loginPageHtml";
 
 const char * const kAppUri = "appUri";
 const char * const kOtpParam = "otp";
+const char * const kOtpSetupParam = "otpSetup";
 const char * const kOtpDisplay = "otpDisplay";
 const char * const kOtpRequired = "otpRequired";
+const char * const kOtpSetupMessage = "otpSetupMessage";
+const char * const kOtpSetupDisplay = "otpSetupDisplay";
 const char * const kCredentialDisplay = "credentialDisplay";
 const char * const kStaySignedIn = "staySignedIn";
 

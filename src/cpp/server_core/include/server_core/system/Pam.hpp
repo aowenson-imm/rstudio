@@ -60,6 +60,7 @@ public:
                      const std::string& rhost = std::string());
 
    bool otpRequired() const { return otpRequired_; }
+   const std::string& otpSetupMessage() const { return otpSetupMessage_; }
 
    virtual void close();
 
@@ -74,6 +75,8 @@ protected:
     std::string password_;
     std::string otp_;
     std::string rhost_;
+    std::string pamTextInfo_;
+    std::string otpSetupMessage_;
     bool otpRequired_ = false;
     bool passwordSent_ = false;
     bool otpSent_ = false;

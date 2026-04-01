@@ -39,7 +39,8 @@ enum class PamLoginResult
 PamLoginResult pamLogin(const std::string& username,
                         const std::string& password,
                         const std::string& otp,
-                        const std::string& rhost = std::string());
+                        const std::string& rhost = std::string(),
+                        std::string* pOtpSetupMessage = nullptr);
 
 core::Error initialize();
 
