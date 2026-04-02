@@ -245,17 +245,24 @@ function prepare() {
                   var exp = chunks[0];
                   var mod = chunks[1];
                   encrypt(payload, exp, mod).then(function (result) {
-                     document.getElementById('persist').value = document.getElementById('staySignedIn').checked ? "1" : "0";
+                     var persistEle = document.getElementById('persist');
+                     var staySignedInEle = document.getElementById('staySignedIn');
+                     if (persistEle !== null)
+                        persistEle.value = staySignedInEle !== null && staySignedInEle.checked ? "1" : "0";
+
+                     var packageEle = document.getElementById('package');
                      if (result.alg) {
-                        document.getElementById('package').value = '$' + result.alg + '$' + result.ct;
+                        if (packageEle !== null)
+                           packageEle.value = '$' + result.alg + '$' + result.ct;
                      } else {
-                        document.getElementById('package').value = result.ct;
+                        if (packageEle !== null)
+                           packageEle.value = result.ct;
                      }
-                     document.getElementById('clientPath').value = window.location.pathname;
-                     console.log("signin prepare", {
-                        otpRequired: document.getElementById('otpRequiredReal').value,
-                        packageLength: document.getElementById('package').value.length
-                     });
+
+                     var clientPathEle = document.getElementById('clientPath');
+                     if (clientPathEle !== null)
+                        clientPathEle.value = window.location.pathname;
+
                      submitPreparedForm();
                   }).catch(function (exception) {
                      setSigningInState(false);
@@ -280,13 +287,13 @@ function prepare() {
  */
 function submitPreparedForm() {
    var form = document.realform;
+   if (!form) {
+      setSigningInState(false);
+      showError("Error: Sign-in form not available; please refresh this page.");
+      return;
+   }
    var xhr = new XMLHttpRequest();
    var formData = new URLSearchParams(new FormData(form));
-   console.log("signin submit", {
-      action: form.action,
-      payloadLength: formData.toString().length,
-      packageLength: document.getElementById('package').value.length
-   });
 
    xhr.open(form.method || "POST", form.action, true);
    xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
