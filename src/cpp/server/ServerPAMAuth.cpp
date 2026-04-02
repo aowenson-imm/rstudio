@@ -303,9 +303,6 @@ void doSignIn(const http::Request& request,
                                        &otpSetupMessage);
    if (pamResult == PamLoginResult::OtpRequired)
    {
-      LOG_WARNING_MESSAGE("OTP required for user '" + username +
-                          "' jsonResponse=" + (jsonResponse ? std::string("1") : std::string("0")) +
-                          " setup-message-len=" + std::to_string(otpSetupMessage.size()));
       if (jsonResponse)
          setJsonOtpRequiredResponse(otpSetupMessage, pResponse);
       else
@@ -404,11 +401,7 @@ PamLoginResult pamLogin(const std::string& username, const std::string& password
    else if (result.exitStatus == 2)
    {
       if (pOtpSetupMessage)
-      {
          *pOtpSetupMessage = result.stdOut;
-         LOG_WARNING_MESSAGE("PAM helper otp-required stdout captured for user '" + username +
-                             "' len=" + std::to_string(pOtpSetupMessage->size()));
-      }
       LOG_DEBUG_MESSAGE("PAM login result: for username: " + username + " returns: otp required");
       return PamLoginResult::OtpRequired;
    }

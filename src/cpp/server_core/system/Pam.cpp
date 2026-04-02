@@ -56,14 +56,6 @@ bool hasMultipleLines(const std::string& text)
    return text.find('\n') != std::string::npos;
 }
 
-std::string summarizePamText(const std::string& text)
-{
-   int keywords = countSetupKeywords(text);
-   return "len=" + std::to_string(text.size()) +
-          ", keywords=" + std::to_string(keywords) +
-          ", classified_setup=" + (keywords >= 2 ? std::string("1") : std::string("0"));
-}
-
 class MemoryPool : boost::noncopyable {
 
    typedef boost::function<void*(size_t)> Alloc;
@@ -165,19 +157,12 @@ int conv(int num_msg,
                   if (!otpContext.empty() && otpContext.back() != '\n')
                      otpContext += "\n";
                   otpContext += msgText;
-                  safeLogToSyslog("pam-login",
-                                  log::LogLevel::WARN,
-                                  "OTP prompt detected without otp input; " + summarizePamText(otpContext));
                   bool hasSetupGuidance = likelyOtpSetupMessage(otpContext) ||
                                           !pPam->pamTextInfo_.empty() ||
                                           hasMultipleLines(msgText);
                   if (hasSetupGuidance)
                   {
                      pPam->otpSetupMessage_ = otpContext;
-                     safeLogToSyslog("pam-login",
-                                     log::LogLevel::WARN,
-                                     "Captured OTP setup guidance for frontend; len=" +
-                                     std::to_string(pPam->otpSetupMessage_.size()));
                   }
                   *resp = nullptr;
                   return PAM_CONV_ERR;

@@ -121,8 +121,6 @@ int main(int argc, char * const argv[])
          return EXIT_SUCCESS;
       else if (pam.otpRequired())
       {
-         LOG_WARNING_MESSAGE("PAM helper returning otp-required for user '" + username +
-                             "' setup-message-len=" + std::to_string(pam.otpSetupMessage().size()));
          if (!pam.otpSetupMessage().empty())
             std::cout << pam.otpSetupMessage() << std::endl;
          return 2;
